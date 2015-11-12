@@ -37,11 +37,11 @@ public class TwitterLike {
         return true;
     }
     
-    public boolean followFriend(String friendname){
+    public boolean followFriend(String username, String friendname){
         return true;
     }
     
-    public boolean postTweet(/*Parameter belum tahu mau apa aja*/){
+    public boolean postTweet(String username, String tweet){
         return true;
     }
     
