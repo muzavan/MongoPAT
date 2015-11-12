@@ -10,6 +10,9 @@ import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.UUID;
 
 /**
  *
@@ -18,6 +21,8 @@ import com.datastax.driver.core.Session;
 public class TwitterLike {
     private Cluster cluster;
     private Session session;
+    Calendar cal = Calendar.getInstance();
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
     
     public TwitterLike(String cluster_address,String keyspace_name){
         cluster = Cluster.builder().addContactPoint(cluster_address).build();
@@ -33,23 +38,47 @@ public class TwitterLike {
         return result.getString("password").equals(password);
     }
     
-    public boolean register(String username, String password){
-        return true;
+    public void register(String username, String password){
+        session.execute("INSERT INTO users (username, password) VALUES ('" + username + "', '" + password + "')");
     }
     
-    public boolean followFriend(String username, String friendname){
-        return true;
+    public void followFriend(String username, String friendname){
+        session.execute("INSERT INTO friends (username, friend, since) VALUES ('" + 
+                            username + "', '" + friendname + "', " + sdf.format(cal.getTime()) + ")");
+        session.execute("INSERT INTO followers (username, follower, since) VALUES ('" + 
+                            friendname + "', '" + username + "', " + sdf.format(cal.getTime()) + ")");
     }
     
-    public boolean postTweet(String username, String tweet){
-        return true;
+    public void postTweet(String username, String tweet){
+        String tweet_id = UUID.randomUUID().toString();
+        session.execute("INSERT INTO tweets (tweet_id, username, body) VALUES ('"+
+                            tweet_id + "', '" + username + "', '" + tweet + "')");
+        session.execute("INSERT INTO userline (username, time, tweet) VALUES ('"+
+                            username + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
+        session.execute("INSERT INTO timeline (username, time, tweet) VALUES ('"+
+                            username + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
+        ResultSet results = session.execute("SELECT * FROM followers WHERE username = '" + username + "'");
+        for (Row row : results){
+            String follower = row.getString("follower");
+            session.execute("INSERT INTO timeline (username, time, tweet) VALUES ('"+
+                            follower + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
+            
+        }
     }
     
-    public boolean getTweetsFromUser(String username){
-        return true;
+    public void getTweetsFromUser(String username){
+        ResultSet results = session.execute("SELECT * FROM userline WHERE username = '" + username + "'");
+        for(Row row : results){
+            Row tweet = session.execute("SELECT * FROM tweets WHERE tweet_id = " + row.getUUID("tweet_id")).one();
+            System.out.println(tweet.getString("username") + ": " + tweet.getString("body"));
+        }
     }
-    public boolean getTimelineFromUser(String username){
-        return true;
+    public void getTimelineFromUser(String username){
+        ResultSet results = session.execute("SELECT * FROM timeline WHERE username = '" + username + "'");
+        for(Row row : results){
+            Row tweet = session.execute("SELECT * FROM tweets WHERE tweet_id = " + row.getUUID("tweet_id")).one();
+            System.out.println(tweet.getString("username") + ": " + tweet.getString("body"));
+        }
     }
     
     public void logout(){
