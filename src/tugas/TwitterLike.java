@@ -38,31 +38,44 @@ public class TwitterLike {
         return result.getString("password").equals(password);
     }
     
-    public void register(String username, String password){
-        session.execute("INSERT INTO users (username, password) VALUES ('" + username + "', '" + password + "')");
+    public boolean register(String username, String password){
+        try{
+            // If already exist, will be replaced by new value
+            session.execute("INSERT INTO users (username, password) VALUES ('" + username + "', '" + password + "');");
+            return true;
+        }
+        catch(Exception e){
+            System.out.println(e);
+            return false;
+        }
     }
     
-    public void followFriend(String username, String friendname){
-        session.execute("INSERT INTO friends (username, friend, since) VALUES ('" + 
-                            username + "', '" + friendname + "', " + sdf.format(cal.getTime()) + ")");
-        session.execute("INSERT INTO followers (username, follower, since) VALUES ('" + 
-                            friendname + "', '" + username + "', " + sdf.format(cal.getTime()) + ")");
+    public boolean followFriend(String username, String friendname){
+        try{
+            session.execute("INSERT INTO friends (username, friend, since) VALUES ('" + 
+                                username + "', '" + friendname + "',dateof(now()))");
+            session.execute("INSERT INTO followers (username, follower, since) VALUES ('" + 
+                                friendname + "', '" + username + "', dateof(now()))");
+            return true;
+        }
+        catch(Exception e){
+            return false;
+        }
     }
     
     public void postTweet(String username, String tweet){
-        String tweet_id = UUID.randomUUID().toString();
-        session.execute("INSERT INTO tweets (tweet_id, username, body) VALUES ('"+
-                            tweet_id + "', '" + username + "', '" + tweet + "')");
-        session.execute("INSERT INTO userline (username, time, tweet) VALUES ('"+
-                            username + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
-        session.execute("INSERT INTO timeline (username, time, tweet) VALUES ('"+
-                            username + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
-        ResultSet results = session.execute("SELECT * FROM followers WHERE username = '" + username + "'");
+        UUID tweet_id = UUID.randomUUID();
+        session.execute("INSERT INTO tweets (tweet_id, username, body) VALUES ("+tweet_id+", '" + username + "', '" + tweet + "')");
+        session.execute("INSERT INTO userline (username, time, tweet_id) VALUES ('"+
+                            username + "', now(), " + tweet_id + ")");
+        session.execute("INSERT INTO timeline (username, time, tweet_id) VALUES ('"+
+                            username + "', now(), " + tweet_id + ")");
+        ResultSet results = session.execute("SELECT * FROM followers where username = '"+username+"'");
+        // Because username is not indexed, filter done in application, not in cassandra
         for (Row row : results){
             String follower = row.getString("follower");
-            session.execute("INSERT INTO timeline (username, time, tweet) VALUES ('"+
-                            follower + "', '" + sdf.format(cal.getTime()) + "', '" + tweet + "')");
-            
+                session.execute("INSERT INTO timeline (username, time, tweet_id) VALUES ('"+
+                            follower + "', now(), " + tweet_id + ")");
         }
     }
     
