@@ -6,12 +6,14 @@
 
 package tugas;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
+import com.mongodb.BasicDBObject;
+import com.mongodb.Cursor;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.MongoClient;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -19,29 +21,37 @@ import java.util.UUID;
  * @author M. Reza Irvanda
  */
 public class TwitterLike {
-    private Cluster cluster;
-    private Session session;
+    private DB db;
+    private static final String USER_COLLECTION = "users";
+    private static final String FRIENDS_COLLECTION = "friends";
+    private static final String FOLLOWERS_COLLECTION = "followers";
+    private static final String USERLINE_COLLECTION = "userlines";
+    private static final String TIMELINE_COLLECTION = "timelines";
+    private static final String TWEETS_COLLECTION = "tweets";
     Calendar cal = Calendar.getInstance();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
     
-    public TwitterLike(String cluster_address,String keyspace_name){
-        cluster = Cluster.builder().addContactPoint(cluster_address).build();
-        session = cluster.connect(keyspace_name);
+    public TwitterLike(String mongo_server_address,String mongo_server_port, String mongo_database){
+        MongoClient mangaClient = new MongoClient(mongo_server_address, Integer.valueOf(mongo_server_port));
+        db = mangaClient.getDB(mongo_database);
     }
     
     public boolean login(String username, String password){
-        String cql_query = "SELECT * FROM users WHERE username='"+username+"'";
-        ResultSet results = session.execute(cql_query);
-        
-        //check if password is same
-        Row result = results.one();
-        return result.getString("password").equals(password);
+        BasicDBObject query = new BasicDBObject("username",username);
+        DBCollection coll = db.getCollection(USER_COLLECTION);
+        Cursor cursor = coll.find(query);
+        if(cursor.hasNext()){            
+            return cursor.next().get("password").equals(password);
+        }
+        return false;
     }
     
     public boolean register(String username, String password){
         try{
             // If already exist, will be replaced by new value
-            session.execute("INSERT INTO users (username, password) VALUES ('" + username + "', '" + password + "');");
+            DBCollection coll = db.getCollection(USER_COLLECTION);
+            BasicDBObject doc = new BasicDBObject("username",username).append("password",password);
+            coll.save(doc);
             return true;
         }
         catch(Exception e){
@@ -52,20 +62,29 @@ public class TwitterLike {
     
     public boolean followFriend(String username, String friendname){
         try{
-            session.execute("INSERT INTO friends (username, friend, since) VALUES ('" + 
-                                username + "', '" + friendname + "',dateof(now()))");
-            session.execute("INSERT INTO followers (username, follower, since) VALUES ('" + 
-                                friendname + "', '" + username + "', dateof(now()))");
+            DBCollection coll_friends = db.getCollection(FRIENDS_COLLECTION);
+            DBCollection coll_follow = db.getCollection(FOLLOWERS_COLLECTION);
+            String since = (new SimpleDateFormat("dd-MM-yyyy")).format(new Date());
+            BasicDBObject doc_friends = new BasicDBObject("username",username).append("friend", friendname).append("since", since);
+            BasicDBObject doc_follow = new BasicDBObject("username",friendname).append("friend", username).append("since", since);
+            coll_friends.save(doc_friends);
+            coll_follow.save(doc_follow);
             return true;
         }
         catch(Exception e){
+            System.out.println(e);
             return false;
         }
     }
     
     public void postTweet(String username, String tweet){
         UUID tweet_id = UUID.randomUUID();
-        session.execute("INSERT INTO tweets (tweet_id, username, body) VALUES ("+tweet_id+", '" + username + "', '" + tweet + "')");
+        //session.execute("INSERT INTO tweets (tweet_id, username, body) VALUES ("+tweet_id+", '" + username + "', '" + tweet + "')");
+        DBCollection tweets = db.getCollection(TWEETS_COLLECTION);
+        DBCollection userlines = db.getCollection(USERLINE_COLLECTION);
+        DBCollection timelines = db.getCollection(TIMELINE_COLLECTION);
+        BasicDBObject _tweet = new BasicDBObject("username",username).append("time", new Date().toString()).append("tweet_id", tweet_id.toString());
+        BasicDBObject _userline = new BasicDBObject()
         session.execute("INSERT INTO userline (username, time, tweet_id) VALUES ('"+
                             username + "', now(), " + tweet_id + ")");
         session.execute("INSERT INTO timeline (username, time, tweet_id) VALUES ('"+

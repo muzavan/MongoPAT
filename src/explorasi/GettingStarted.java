@@ -6,10 +6,13 @@
 
 package explorasi;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
+import com.mongodb.MongoClient;
+import java.util.Date;
 
 /**
  *
@@ -17,21 +20,23 @@ import com.datastax.driver.core.Session;
  */
 public class GettingStarted {
     public static void main(String args[]){
-        Cluster cluster;
-        Session session;
+        MongoClient mongoClient = new MongoClient("localhost",27017);
+        DB db = mongoClient.getDB("pat_13512042");
+        DBCollection coll = db.getCollection("users");
         
-        //connect to the cluster and keyspace "demo"
-        cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
-        session = cluster.connect("joshuaeja");
+        BasicDBObject doc = new BasicDBObject("name","joshua").append("kelas","01").append("timestamp", new Date());
+        coll.insert(doc);
         
-        //adding one instance
-        session.execute("INSERT INTO users(user_id, fname, lname) values (1111,'Riva','Syafri');");
+        DBCursor cursor = coll.find(doc);
         
-        ResultSet results = session.execute("SELECT * FROM users where fname='Riva';");
-        
-        //iterate from the resulted row from query
-        for(Row row : results){
-            System.out.format("%s %s %d\n", row.getString("fname"),row.getString("lname"),row.getInt("user_id"));
+        while(cursor.hasNext()){
+            DBObject tmp = cursor.next();
+            System.out.println(tmp.get("name"));
+            System.out.println(tmp.get("kelas"));
+            System.out.println(tmp.get("timestamp"));
+            System.out.println(tmp.get("_id"));
         }
+        
+        
     }
 }
