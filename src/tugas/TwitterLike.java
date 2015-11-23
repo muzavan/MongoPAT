@@ -10,10 +10,13 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.Cursor;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
+import com.mongodb.DBObject;
 import com.mongodb.MongoClient;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -83,37 +86,59 @@ public class TwitterLike {
         DBCollection tweets = db.getCollection(TWEETS_COLLECTION);
         DBCollection userlines = db.getCollection(USERLINE_COLLECTION);
         DBCollection timelines = db.getCollection(TIMELINE_COLLECTION);
-        BasicDBObject _tweet = new BasicDBObject("username",username).append("time", new Date().toString()).append("tweet_id", tweet_id.toString());
-        BasicDBObject _userline = new BasicDBObject()
-        session.execute("INSERT INTO userline (username, time, tweet_id) VALUES ('"+
-                            username + "', now(), " + tweet_id + ")");
-        session.execute("INSERT INTO timeline (username, time, tweet_id) VALUES ('"+
-                            username + "', now(), " + tweet_id + ")");
-        ResultSet results = session.execute("SELECT * FROM followers where username = '"+username+"'");
-        // Because username is not indexed, filter done in application, not in cassandra
-        for (Row row : results){
-            String follower = row.getString("follower");
-                session.execute("INSERT INTO timeline (username, time, tweet_id) VALUES ('"+
-                            follower + "', now(), " + tweet_id + ")");
+        String time = new Date().toString();
+        BasicDBObject _tweet = new BasicDBObject("username",username).append("body", tweet).append("tweet_id", tweet_id.toString());
+        BasicDBObject _userline = new BasicDBObject("username",username).append("time", time).append("tweet_id", tweet_id.toString());
+        BasicDBObject _timeline = new BasicDBObject("username",username).append("time", time).append("tweet_id", tweet_id.toString());
+        
+        tweets.save(_tweet);
+        userlines.save(_userline);
+        timelines.save(_timeline);
+        //search all followers of username
+        BasicDBObject query = new BasicDBObject("username", username);
+        List<String> followers = new ArrayList<String>();
+        Cursor results = db.getCollection(FOLLOWERS_COLLECTION).find(query);
+        while(results.hasNext()){
+            followers.add(String.valueOf(results.next().get("follower")));
+        }
+        for (String follower : followers){
+            _timeline = new BasicDBObject("username",follower).append("time", time).append("tweet_id", tweet_id.toString());
+            timelines.save(_timeline);
         }
     }
     
     public void getTweetsFromUser(String username){
-        ResultSet results = session.execute("SELECT * FROM userline WHERE username = '" + username + "'");
-        for(Row row : results){
-            Row tweet = session.execute("SELECT * FROM tweets WHERE tweet_id = " + row.getUUID("tweet_id")).one();
-            System.out.println(tweet.getString("username") + ": " + tweet.getString("body"));
+        DBCollection tweets = db.getCollection(TWEETS_COLLECTION);
+        DBCollection userlines = db.getCollection(USERLINE_COLLECTION);
+        BasicDBObject userline_query = new BasicDBObject("username", username);
+        Cursor users = userlines.find(userline_query);
+        while(users.hasNext()){
+            String tweet_id = String.valueOf(users.next().get("tweet_id"));
+            BasicDBObject query = new BasicDBObject("tweet_id",tweet_id);
+            Cursor _tweets = tweets.find(query);
+            while(_tweets.hasNext()){
+                DBObject tmp = _tweets.next();
+                System.out.printf("%s : %s", String.valueOf(tmp.get("username")), String.valueOf(tmp.get("body")));
+            }
         }
     }
     public void getTimelineFromUser(String username){
-        ResultSet results = session.execute("SELECT * FROM timeline WHERE username = '" + username + "'");
-        for(Row row : results){
-            Row tweet = session.execute("SELECT * FROM tweets WHERE tweet_id = " + row.getUUID("tweet_id")).one();
-            System.out.println(tweet.getString("username") + ": " + tweet.getString("body"));
+        DBCollection tweets = db.getCollection(TWEETS_COLLECTION);
+        DBCollection timelines = db.getCollection(TIMELINE_COLLECTION);
+        BasicDBObject timeline_query = new BasicDBObject("username",username);
+        Cursor results = timelines.find(timeline_query);
+        while(results.hasNext()){
+            String tweet_id = String.valueOf(results.next().get("tweet_id"));
+            BasicDBObject query = new BasicDBObject("tweet_id",tweet_id);
+            Cursor _tweets = tweets.find(query);
+            while(_tweets.hasNext()){
+                DBObject tmp = _tweets.next();
+                System.out.printf("%s : %s", String.valueOf(tmp.get("username")), String.valueOf(tmp.get("body")));
+            }
         }
     }
     
     public void logout(){
-        cluster.close();
+        // do nothing?
     }
 }
