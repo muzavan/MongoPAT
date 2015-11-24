@@ -15,7 +15,7 @@ import java.util.Scanner;
 public class MainClient {
     public static void main (String args[]){
         if(args.length < 3){
-            System.out.println("Args : <server_address>  <server_port> <collection_name>");
+            System.out.println("Args : <server_address>  <server_port> <mongo_database_name>");
             return;
         }
         
