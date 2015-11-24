@@ -1,5 +1,7 @@
-# CassandraPAT
-Tugas VIII IF4031 Pengembangan Aplikasi Terdistribusi
+# MongoPAT
+Tugas IX IF4031 Pengembangan Aplikasi Terdistribusi
+
+Membuat Twitter Client menggunakaan MongoDB
 
 1. Joshua Bezaleel Abednego (13512013)
 

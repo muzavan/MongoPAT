@@ -14,12 +14,12 @@ import java.util.Scanner;
  */
 public class MainClient {
     public static void main (String args[]){
-        if(args.length < 2){
-            System.out.println("Args : <cluster_address> <keyspace>");
+        if(args.length < 3){
+            System.out.println("Args : <server_address>  <server_port> <collection_name>");
             return;
         }
         
-        TwitterLike twitter = new TwitterLike(args[0], args[1]); //cluster_address, keyspace
+        TwitterLike twitter = new TwitterLike(args[0], args[1], args[2]); //cluster_address, keyspace
         String username,password;
         Scanner scan = new Scanner(System.in);
         System.out.println("Pilih:\n1.Login\n2.Register");
